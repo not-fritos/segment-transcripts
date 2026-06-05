@@ -1,0 +1,5 @@
+output
+*.mp4
+*.flac
+*.srt
+.DS_Store
