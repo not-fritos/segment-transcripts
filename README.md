@@ -36,12 +36,19 @@ Optional: set chunk duration in seconds (default: 60).
 python segment.py --video zoom0006.mp4 --chunk-duration 120
 ```
 
+Optional: set the output directory (defaut: output)
+
 Output is written to `./output/`:
 ```
 output/
 ├── video-chunks/  # .mp4 segments
 ├── audio/         # .flac audio files
 └── subtitle/      # .srt subtitle files
+```
+
+Example:
+```
+python3 segment.py --video zoom0007.mp4 --chunk-duration 60 --output session-03-output
 ```
 
 ## Notes

@@ -88,15 +88,27 @@ def _extract_audio(video_chunk: Path, output_dir: Path) -> Path:
     return audio_path
 
 
+def _clamp_segments(segments: list[dict], max_time: float) -> list[dict]:
+    """Clamp segment end times so no segment exceeds max_time seconds."""
+    clamped = []
+    for seg in segments:
+        seg["start"] = min(seg["start"], max_time)
+        seg["end"] = min(seg["end"], max_time)
+        if seg["start"] < seg["end"]:
+            clamped.append(seg)
+    return clamped
+
+
 def _transcribe_audio(
-    audio_path: Path, model: whisper.Whisper, output_dir: Path
+    audio_path: Path, model: whisper.Whisper, output_dir: Path, chunk_duration: int
 ) -> Path:
     """Transcribe audio with Whisper and write an SRT subtitle file."""
     srt_path = output_dir / f"{audio_path.stem}.srt"
 
     print(f"  Transcribing {audio_path.name}...")
     result = model.transcribe(str(audio_path))
-    _write_srt(result["segments"], str(srt_path))
+    segments = _clamp_segments(result["segments"], float(chunk_duration))
+    _write_srt(segments, str(srt_path))
 
     return srt_path
 
@@ -116,10 +128,27 @@ def main() -> None:
         default=60,
         help="Duration of each chunk in seconds (default: 60)",
     )
+    parser.add_argument(
+        "--output",
+        default="./output",
+        help="Output directory (default: ./output)",
+    )
     args = parser.parse_args()
 
     video_path = _validate_input(args.video)
-    output_base = Path.cwd() / "output"
+
+    if args.output_dir:
+        output_base = Path(args.output_dir)
+    else:
+        output_base = Path.cwd() / "output"
+        if output_base.exists() and any(output_base.iterdir()):
+            print(
+                f"Error: default output directory '{output_base}' already exists "
+                "and is not empty. Use --output to specify a different path.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     dirs = _create_output_dirs(str(output_base))
 
     print(f"Output directory: {output_base}")
@@ -134,7 +163,7 @@ def main() -> None:
         audio_path = _extract_audio(chunk, dirs["audio"])
         print(f"  Audio -> {audio_path.name}")
 
-        srt_path = _transcribe_audio(audio_path, model, dirs["subtitle"])
+        srt_path = _transcribe_audio(audio_path, model, dirs["subtitle"], args.chunk_duration)
         print(f"  Subtitle -> {srt_path.name}")
 
     print("Done!")
